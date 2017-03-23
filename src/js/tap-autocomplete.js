@@ -1,6 +1,6 @@
 /**
  *  Autocomplete for CodeMirror 2.
- *  Uses adql.js by Gregory Mantelet
+ *  Uses adql.js by Gregory Mantelet and votable.js (https://gitlab.com/cdsdevcorner/votable.js)
  *  Extended to allow dynamic metadata keyword loading from TAP service (TAP_SCHEMA or VOSI)
  *  @author Stelios Voutsinas (ROE)
  *  @version 11/Feb/2015
@@ -487,6 +487,38 @@ TapAutocomplete.prototype.load_metadata_from_gwt = function(
 		 
 	};
 
+	/**
+	 * Wrapper for Votable.js, query queryURLStr return tableData 
+	 */
+	function votableJSQuery(queryURLStr){
+			var p = new VOTableParser();
+			p.loadFile(queryURLStr);
+
+		    var nbResources = p.getNbResourcesInFile();
+		    var nbTablesInResource = 0;
+		    var currentTableGroups = [];
+		    var currentTableFields = [];
+		    var currentTableData = [[]];
+
+		    for(var i = 0; i < nbResources; i++) {
+		        p.selectResource(i);
+		        nbTablesInResource = p.getCurrentResourceNbTables();
+		        for(var j = 0; j < nbTablesInResource; j++) {
+		            p.selectTable(j);
+		            //currentTableGroups = p.getCurrentTableGroups();
+		            //currentTableFields = p.getCurrentTableFields();
+		            currentTableData = p.getCurrentTableData();
+		            
+
+		            // ... do something
+		        }
+		    }
+		    // ... do something again
+		    p.cleanMemory();
+		    return currentTableData;
+
+	  }
+
 
 
 	/**
@@ -499,40 +531,17 @@ TapAutocomplete.prototype.load_metadata_from_gwt = function(
 		_this = this;
 
 		
-		var p = new VOTableParser();
-		p.loadFile( _this.tap_resource + "/sync?QUERY=SELECT+TOP+10+schema_name+FROM+TAP_SCHEMA.schemas&LANG=ADQL&REQUEST=doQuery");
-
-	    var nbResources = p.getNbResourcesInFile();
-	    var nbTablesInResource = 0;
-	    var currentTableGroups = [];
-	    var currentTableFields = [];
-	    var currentTableData = [[]];
-
-	    for(var i = 0; i < nbResources; i++) {
-	        p.selectResource(i);
-	        nbTablesInResource = p.getCurrentResourceNbTables();
-	        for(var j = 0; j < nbTablesInResource; j++) {
-	            p.selectTable(j);
-	            //currentTableGroups = p.getCurrentTableGroups();
-	            //currentTableFields = p.getCurrentTableFields();
-	            currentTableData = p.getCurrentTableData();
-	            push_metadata_json(currentTableData);
-	            
-
-	            // ... do something
-	        }
-	    }
-	    // ... do something again
-	    p.cleanMemory();
-		
 		optional_catalogues = (typeof optional_catalogues === 'undefined') ? [] : optional_catalogues;
-
+		var getRequestString = _this.tap_resource + "/sync?REQUEST=doQuery&VERSION=1.0&FORMAT=VOTABLE&LANG=ADQL&QUERY=";
+		
 		if (_this.autocomplete_info)
 			jQuery("#" + _this.autocomplete_info).html(
 				"Loading catalogue metadata keywords for auto-complete");
 		if (_this.autocomplete_loader)
 			jQuery("#" + _this.autocomplete_loader).show();
 
+
+		
 		function push_metadata_json(data) {
 			if (data.length > 0) {
 				for (var i = 0; i < data.length; i++) {
@@ -546,38 +555,41 @@ TapAutocomplete.prototype.load_metadata_from_gwt = function(
 
 		}
 
-		optional_catalogues = JSON.stringify(optional_catalogues);
+		var array = []
+		
+		if (optional_catalogues.length>0) {
+		    var newArr = [];
+			for (var i = 0; i < optional_catalogues.length; i++) {
 
-		jQuery.ajax({
-			type: "POST",
-			dataType: "json",
-			async: false,
-			data: {
-				resource: _this.tap_resource,
-				optional_catalogues: optional_catalogues,
-				mode: "tap",
-			},
-			url: _this.web_service_path,
-			timeout: 1000000,
-			error: function(e) {
-				if (_this.autocomplete_info)
-					jQuery("#" + _this.autocomplete_info).html(
-						"CTRL + Space to activate auto-complete");
-				if (_this.autocomplete_loader)
-					jQuery("#" + _this.autocomplete_loader).hide();
-			},
-			success: function(data) {
+				query = "SELECT top 10 t.table_name, s.schema_name FROM TAP_SCHEMA.tables as t, TAP_SCHEMA.schemas as s WHERE t.schema_name='" + optional_catalogues[i]
+						+ "'";
+				queryURLStr = getRequestString + escape(query);
+				console.log(queryURLStr);
+			    newArr = votableJSQuery(queryURLStr);
+				for (var y = 0; y < newArr.length; y++) {
+		
+					array.push(newArr[y][0]);
+					array.push(newArr[y][1]);
 
-				if (data) {
-					push_metadata_json(data);
 				}
-				if (_this.autocomplete_info)
-					jQuery("#" + _this.autocomplete_info).html(
-						"CTRL + Space to activate auto-complete");
-				if (_this.autocomplete_loader)
-					jQuery("#" + _this.autocomplete_loader).hide();
 			}
-		});
+
+		} else {
+		
+			query = "SELECT schema_name FROM TAP_SCHEMA.schemas";
+			var queryURLStr = getRequestString + escape(query);
+			array = votableJSQuery(queryURLStr);
+
+		}
+
+		push_metadata_json(array);
+
+		if (_this.autocomplete_info)
+			jQuery("#" + _this.autocomplete_info).html(
+				"CTRL + Space to activate auto-complete");
+		if (_this.autocomplete_loader)
+			jQuery("#" + _this.autocomplete_loader).hide();
+
 		
 		};
 		

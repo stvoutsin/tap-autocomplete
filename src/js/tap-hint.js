@@ -1,6 +1,6 @@
 /**
  *  Autocomplete for CodeMirror 2.
- *  Uses adql.js by Gregory Mantelet
+ *  Uses adql.js by Gregory Mantelet and votable.js (https://gitlab.com/cdsdevcorner/votable.js)
  *  Extended to allow dynamic metadata keyword loading from webservice
  *  @author Stelios Voutsinas (ROE)
  *  @version 11/Feb/2015
@@ -361,7 +361,6 @@
 	      start = token.string;
 
 	    function maybeAdd(str) {
-
 	      if (str.toLowerCase().indexOf(start.toLowerCase()) == 0 && !jsArrayContains(found, str)) found.push(str);
 	    }
 
@@ -492,11 +491,13 @@
   }
 
   /**
-   *  Load metadata for autocomplete using votable.js TAP request
+   *  Load metadata for autocomplete using votable.js's loadfile (TAP request)
    *  Sends request to TAP service (TAP_SCHEMA)
    *
    */
   function loadMetadataForAutocompleteTapJs(keyword, parentText, tags, editor, optional_keyword) {
+console.log(keyword)
+console.log(optional_keyword)
 
     optional_keyword = (typeof optional_keyword === 'undefined') ? '' : optional_keyword;
 
@@ -505,6 +506,7 @@
     
 	var getRequestString = editor.tapResource + "/sync?REQUEST=doQuery&VERSION=1.0&FORMAT=VOTABLE&LANG=ADQL&QUERY=";
 
+	
 	var array= [];
 	//Number of dots
 	var count_dots = keyword.length - keyword.replace(".", "").length;
@@ -512,8 +514,8 @@
 
 		query = "SELECT column_name FROM TAP_SCHEMA.columns WHERE table_name LIKE '%." + keyword
 				+ "' OR  table_name='" + keyword + "'";
-		if (optional_keyword != null && optional_keyword != "") {
 			query += " AND (column_name LIKE '" + optional_keyword + "%' OR column_name LIKE '" + keyword + "."
+			if (optional_keyword != null && optional_keyword != "") {
 					+ optional_keyword + "%')";
 		}
 		
@@ -531,7 +533,7 @@
 		
 		var queryURLStr = getRequestString + escape(query);
 		array = votableJSQuery(queryURLStr);
-		// No tables foundm check columns for keyword
+		// No tables found check columns for keyword
 		if (array.length <= 0) {
 
 			query = "SELECT column_name FROM TAP_SCHEMA.columns WHERE table_name LIKE '%." + keyword
@@ -546,45 +548,41 @@
 
 		}
 
-		//if (optional_keyword != null && optional_keyword != "") {
-		//	array = filter_name(array, optional_keyword);
-		//}
+		if (optional_keyword != null && optional_keyword != "") {
+			array = filter_name(array, optional_keyword);
+		}
 
 	} else {
 		// No keyword found, get initial list of schemas or tables
-/*
-		try {
-			JSONArray json_array = null;
-			if (optional_catalogues != "" && optional_catalogues != null) {
-				json_array = new JSONArray(optional_catalogues);
-			}
-			
-			if (json_array.length()>0) {
-			
-				for (int i = 0; i < json_array.length(); i++) {
 
-					query = "SELECT t.table_name, s.schema_name FROM TAP_SCHEMA.tables as t, TAP_SCHEMA.schemas as s WHERE t.schema_name='" + json_array.get(i)
+			json_array = [];
+			if (optional_catalogues != "" && optional_catalogues != null) {
+				json_array = optional_catalogues;
+			}
+			if (json_array.length>0) {
+			
+				for (var i = 0; i < json_array.length(); i++) {
+
+					query = "SELECT t.table_name, s.schema_name FROM TAP_SCHEMA.tables as t, TAP_SCHEMA.schemas as s WHERE t.schema_name='" + json_array[i]
 							+ "'";
-					String queryURLStr = tapService + getRequestString
-							+ URLEncoder.encode(query, "UTF-8");
-					JSONArray newArray = starTableToJSONArray(urlToStartable(queryURLStr));
-					for (int y = 0; y < newArray.length(); y++) {
-						array.put(newArray.get(y));
+					queryURLStr = getRequestString + escape(query);
+					var newArray = votableJSQuery(queryURLStr);
+					
+					for (var y = 0; y < newArray.length(); y++) {
+						array.put(newArray[y]);
 					}
 				}
 
 			} else {
-			*/
+			
 				query = "SELECT schema_name FROM TAP_SCHEMA.schemas";
 				var queryURLStr = getRequestString + URLEncoder.encode(query);
 				array = votableJSQuery(queryURLStr);
 
-//			}
+			}
 
 	}
-    console.log(query);
-    console.log(queryURLStr);
-    console.log(array);
+
     pushMetadataJson(array, tags, parentText, keyword);
     
 
@@ -594,7 +592,48 @@
     return;
   }
   
+	/**
+	 * Filter an array for a keyword, return list where elements (split by '.' in case of 'schema.tablename') match keyword
+	 * @param original_list
+	 * @param keyword
+	 * @return
+	 */
+	function filter_name(original_list, keyword) {
 
+		var filtered_list = []
+
+		for (var i = 0; i < original_list.length; i++) {
+
+			var string_value = "";
+
+
+			item_arr =  original_list[i];
+			if (item_arr.length>0){
+				item = item_arr[0];
+	
+				// Grab the last segment
+				string_value = item.substring(item.lastIndexOf(".") + 1);
+	
+	
+				if (keyword != "") {
+					if (string_value.toLowerCase().startsWith(keyword.toLowerCase())) {
+						filtered_list.push(string_value);
+					}
+				} else {
+					if (string_value != "") {
+						filtered_list.push(string_value);
+					}
+				}
+			}
+		}
+
+		return filtered_list;
+
+	}
+  
+  /**
+   * Wrapper for Votable.js, Runs TAP request in queryURLStr and return tableData
+   */
   function votableJSQuery(queryURLStr){
 		var p = new VOTableParser();
 		p.loadFile(queryURLStr);
@@ -887,7 +926,8 @@
 	    token.end = cur.ch;
 	    token.string = token.string.slice(0, cur.ch - token.start);
 	  }
-	
+
+	  console.log(token.string)
 	  if (token.string.match(/^[.`\w@]\w*$/)) {
 	    search = token.string;
 	    start = token.start;
@@ -896,8 +936,9 @@
 	    start = end = cur.ch;
 	    search = "";
 	  }
+	  
 	  if (search.charAt(0) == "." || search.charAt(0) == "`") {
-	    table = nameCompletion(cur, token, result, editor);
+		  table = nameCompletion(cur, token, result, editor);
 	  } 
 	  
 	  return table; 
@@ -913,6 +954,7 @@
 
     var aliasTable = aliasSearch(editor, keywords, getToken, options);
     // If it's not a 'word-style' token, ignore the token.
+
     if (!/^[\w$_]*$/.test(token.string)) {
       token = tprop = {
         start: cur.ch,
@@ -951,7 +993,7 @@
         line: cur.line,
         ch: tprop.start
       })
-       
+
       if (editor.servicemode.toLowerCase() == "gwt") {
     	   
           tableProp = getToken(editor, {
