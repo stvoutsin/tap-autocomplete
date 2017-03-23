@@ -1,0 +1,69 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+    <!--                                                               -->
+    <!-- Consider inlining CSS to reduce the number of requested files -->
+    <!--                                                               -->
+    <link type="text/css" rel="stylesheet" href="css/demo.css">
+
+    <title>Autocomplete Demo</title>
+
+    <link rel="stylesheet" href="../src/css/codemirror.css">
+    <link rel="stylesheet" href="../src/css/adql.css">
+    <link rel="stylesheet" href="../src/css/simple-hint.css">
+    <script  type="text/javascript" src="../src/js/jquery-1.7.2.min.js"></script>
+    <script src="../src/js/codemirror.js"></script>
+    <script src="../src/js/adql.js"></script>
+    <script src="../src/js/tap-hint.js"></script>
+    <script src="../src/js/votable.js"></script>
+    <script src="../src/js/tap-autocomplete.js"></script>
+
+    <script type="text/javascript">
+
+    $( document ).ready(function() {
+ 
+      
+	  var params = {
+	    textfieldid: "textfield",
+	    //web_service_path: 'genius/autocompleteAsync',
+		tap_resource: 'http://tapvizier.u-strasbg.fr/TAPVizieR/tap/',    
+	    servicemode: "tapjs",
+	    //initial_catalogues: ["public"],
+	  }
+
+	  var autocompleteInstance = new TapAutocomplete(params);
+
+    });
+
+    </script>
+  </head>
+
+  <body>
+
+    <!-- RECOMMENDED if your web app will not function without JavaScript enabled -->
+    <noscript>
+      <div style="width: 22em; position: absolute; left: 50%; margin-left: -11em; color: red; background-color: white; border: 1px solid red; padding: 4px; font-family: sans-serif">
+        Your web browser must have JavaScript enabled
+        in order for this application to display correctly.
+      </div>
+    </noscript>
+
+    <h1>Genius Autocomplete Demo</h1>
+
+    <table align="center">
+      <tr>
+        <td colspan="2" style="font-weight:bold;">Please enter your query:</td>        
+      </tr>
+      <tr>
+        <td id="nameFieldContainer"><textarea id="textfield" class="gwt-TextArea"></textarea></td>
+        <td id="sendButtonContainer"></td>
+      </tr>
+      <tr>
+        <td colspan="2" style="color:red;" id="errorLabelContainer"></td>
+      </tr>
+    </table>
+  </body>
+</html>
