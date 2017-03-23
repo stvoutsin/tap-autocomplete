@@ -11,7 +11,7 @@ Javascript:
 
 var params = { <br>     
     textfieldid: "textfield",<br>
-  	tap_resource: 'http://tap_service', <br>
+    tap_resource: 'http://tap_service', <br>
     servicemode: "tapjs"<br>,
     initial_catalogues: ["name"]
 } 
